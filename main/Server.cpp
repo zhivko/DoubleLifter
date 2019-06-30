@@ -85,6 +85,12 @@
 	static int taskManagerCore = 0;
 #endif
 
+#if enableWifiClient == 1
+	#include "WebClient.h"
+#endif
+
+
+
 #if enablePwm == 1
 #define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
 #define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
@@ -221,6 +227,7 @@ int32_t encoder2_value = 0;
 TaskHandle_t TaskA;
 TaskHandle_t TaskCheckIp;
 TaskHandle_t TaskMan;
+TaskHandle_t WiFiClient;
 TaskHandle_t TaskEncSaver;
 TaskHandle_t TaskLoop;
 TaskHandle_t reportJsonTask;
@@ -1187,6 +1194,25 @@ void startServer() {
 	lcd_out("WebServer started.\n");
 
 	MDNS.addService("http", "tcp", 80);
+
+	#if enableWifiClient == 1
+		lcd_out("Starting WifiClient...");
+		Serial.flush();
+
+		const char* ipParameter = serverIP.toString().c_str();
+
+		xTaskCreatePinnedToCore(webClientTask,			// pvTaskCode
+				"WiFi client",			// pcName
+				4096,			// usStackDepth
+				(void *)ipParameter,			// pvParameters
+				22,			// uxPriority
+				&WiFiClient,			// pxCreatedTask
+				0);			// xCoreID
+		esp_task_wdt_add(WiFiClient);
+		lcd_out("Starting WiFi client task...Done.\n");
+		Serial.flush();
+	#endif
+
 }
 
 void syncTime();
@@ -1649,10 +1675,10 @@ bool checkNoApFoundCritical() {
 			IPAddress Ip(192, 168, 1, 1);
 			IPAddress NMask(255, 255, 255, 0);
 			WiFi.softAPConfig(Ip, Ip, NMask);
-			IPAddress myIP = WiFi.softAPIP();
+			serverIP = WiFi.softAPIP();
 			Serial.printf("Network %s is running.\n", softAP_ssid);
 			Serial.print("AP IP address: ");
-			Serial.println(myIP);
+			Serial.println(serverIP);
 			startServer();
 		}
 		return true;
@@ -1975,6 +2001,7 @@ void setup() {
 //		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
 //	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+		serverIP = WiFi.softAPIP();
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -2283,7 +2310,7 @@ void myLoop() {			//ArduinoOTA.handle();
 		}
 
 		if ((millis() > (previousJsonSentMs + jsonReportIntervalMs))) {
-			ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
+			//ESP_ERROR_CHECK(heap_trace_start(HEAP_TRACE_LEAKS));
 			setJsonString();
 			//Serial.println(txtToSend);
 #ifdef arduinoWebserver
@@ -2304,8 +2331,8 @@ void myLoop() {			//ArduinoOTA.handle();
 			 }
 			 */
 #endif
-			ESP_ERROR_CHECK(heap_trace_stop());
-			heap_trace_dump();
+			//ESP_ERROR_CHECK(heap_trace_stop());
+			//heap_trace_dump();
 //Serial.printf("texted all: %s\n", txtToSend);
 			previousJsonSentMs = millis();
 		}

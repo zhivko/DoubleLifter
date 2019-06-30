@@ -12,9 +12,12 @@ SemaphoreHandle_t xSemaphore = NULL;
 
 #define enablePwm 1
 #define enableTaskManager 1
+#define enableWifiClient 0
+
 bool enableLcd = false;
 bool enableMover = false;
 bool enableLed = true;
 
+IPAddress serverIP;
 
 #endif /* MAIN_SERVER_H_ */
