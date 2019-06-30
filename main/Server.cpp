@@ -268,7 +268,7 @@ uint32_t cap_reading = 0;
 
 // PID
 static String initialPidStr =
-		"p=1.00 i=2.00 d=0.00 f=0.00 syn=0 synErr=0.00 ramp=0.05 maxIout=540.00";
+		"p=2.00 i=4 d=0.00 f=0.00 syn=0 synErr=0.00 ramp=0.25 maxIout=550.00";
 static String pid_str1;
 static String pid_str2;
 
