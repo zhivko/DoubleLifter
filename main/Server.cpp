@@ -92,21 +92,21 @@
 
 
 #if enablePwm == 1
-#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
-#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
-#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
-#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
+	#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
+	#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
+	#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
+	#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
 
-AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
-ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
-AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
-ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
+	AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
+	ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
+	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
+	ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
 
-#define enableEncSaver 1
-#include "encoderSaver.h"
-static int encoderSaverCore = 0;
+	#define enableEncSaver 1
+	#include "encoderSaver.h"
+	static int encoderSaverCore = 0;
 #else
-#define enableEncSaver 0
+	#define enableEncSaver 0
 #endif
 
 int pidTaskCore = 1;
@@ -131,7 +131,7 @@ float timeH;
 
 // jtag pins: 15, 12 13 14
 
-const char* hostName = "esp32_door";
+// Make MC server respond to: http://esp32_door:81/index.html
 int jsonReportIntervalMs = 5000;
 int jsonFastReportIntervalMs = 150;
 int jsonSlowReportIntervalMs = 5000;
@@ -249,6 +249,7 @@ char txtToSend[1100] = { };
 #ifndef arduinoWebserver
 AsyncWebServer server(81);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
+AsyncEventSource events("/events");
 #endif
 #ifdef arduinoWebserver
 	WebServer server(81);
@@ -1190,6 +1191,17 @@ void startServer() {
 		request->send(200, "text/html", "Target1 set OK.");
 	});
 
+	events.onConnect([](AsyncEventSourceClient *client){
+		if(client->lastId()){
+		  Serial.printf("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
+		}
+		//send event with message "hello!", id current millis
+		// and set reconnect delay to 1 second
+		client->send("hello!",NULL,millis(),1000);
+	});
+	//HTTP Basic authentication
+	events.setAuthentication("user", "pass");
+	server.addHandler(&events);
 	server.begin();
 	lcd_out("WebServer started.\n");
 
@@ -1679,7 +1691,7 @@ bool checkNoApFoundCritical() {
 			Serial.printf("Network %s is running.\n", softAP_ssid);
 			Serial.print("AP IP address: ");
 			Serial.println(serverIP);
-			startServer();
+			//startServer();
 		}
 		return true;
 	}
@@ -2001,14 +2013,25 @@ void setup() {
 //		lcd_out(String(WiFi.softAPIPv6().toString() + "\n").c_str());
 //	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
-		serverIP = WiFi.softAPIP();
+		lcd_out("SYSTEM_EVENT_STA_GOT_IP\n");
+		serverIP = WiFi.localIP();
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+
+	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+		lcd_out("SYSTEM_EVENT_AP_STAIPASSIGNED\n");
+		serverIP = WiFi.softAPIP();
+		startServer();
+	}, WiFiEvent_t::SYSTEM_EVENT_AP_STAIPASSIGNED);
+
+
+
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("SYSTEM_EVENT_GOT_IP6\n");
 		//sstartServer();
 		}, WiFiEvent_t::SYSTEM_EVENT_GOT_IP6);
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
+		lcd_out("SYSTEM_EVENT_STA_DISCONNECTED\n");
 		WiFi.begin();
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_DISCONNECTED);
 
@@ -2427,7 +2450,7 @@ void CheckIpTask(void * parameter) {
 			buf.concat(str2);
 			buf.concat("\n");
 			lcd_out(buf.c_str());
-			startServer();
+			//startServer();
 		}
 	} else {
 		tcpip_adapter_ip_info_t ip_info;

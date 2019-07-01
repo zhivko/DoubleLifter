@@ -10,14 +10,16 @@
 
 SemaphoreHandle_t xSemaphore = NULL;
 
-#define enablePwm 1
+#define enablePwm 0
 #define enableTaskManager 1
-#define enableWifiClient 0
+#define enableWifiClient 1
 
-bool enableLcd = false;
+bool enableLcd = true;
 bool enableMover = false;
 bool enableLed = true;
 
 IPAddress serverIP;
+static const char* hostName = "esp32_door";
+
 
 #endif /* MAIN_SERVER_H_ */

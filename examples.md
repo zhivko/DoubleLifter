@@ -8,7 +8,6 @@ The following example Arduino sketches (*.ino) are available with this library:
 
 To use examples below, first you need to [install](readme.md#installation) the [EspSaveCrash](https://github.com/krzychb/EspSaveCrash) library on your PC.
 
-
 ## Table of Contents
 - [Simple Crash](#simple-crash)
   - [Set Up](#set-up)

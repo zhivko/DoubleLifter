@@ -18,15 +18,14 @@ void taskmanageTask(void * pvParameters) {
 		uxArraySize = uxTaskGetSystemState(pxTaskStatusArray, uxArraySize,
 				&ulTotalRunTime);
 
+		size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+
 		Serial.printf(
 				"time[s]: %" PRIu64 " uptime[h]: %.2f core: %d, freeHeap: %u, largest: %u\n",
-				mySecond, timeH, xPortGetCoreID(), freeheap,
-				heap_caps_get_largest_free_block(MALLOC_CAP_8BIT));
+				mySecond, timeH, xPortGetCoreID(), freeheap, largest);
 
-		sprintf(outputBuffer, "%15s%10s%10s%10s%10s%10s%10s%10s%10s\r\n",
-				"NAME", "ID", "STATE", "PRIO", "BASE", "TIME", "CPU", "STACK",
-				"CORE");
-		Serial.print(outputBuffer);
+		Serial.printf("%15s%10s%10s%10s%10s%10s%10s%10s%10s\r\n", "NAME", "ID",
+				"STATE", "PRIO", "BASE", "TIME", "CPU", "STACK", "CORE");
 
 		for (int i = 0; i < uxArraySize; i++) {
 
@@ -69,7 +68,7 @@ void taskmanageTask(void * pvParameters) {
 				Serial.print(outputBuffer);
 				break;
 			default:
-				sprintf(outputBuffer, "%10s", "unkown");
+				sprintf(outputBuffer, "%10s", "unknown");
 				Serial.print(outputBuffer);
 				break;
 			}
