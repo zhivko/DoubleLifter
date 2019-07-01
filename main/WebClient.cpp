@@ -39,6 +39,10 @@ void webClientTask(void * pvParameters) {
 
 			a = -1*a;
 		}
+		esp_err_t err = esp_task_wdt_reset();
+		if (err != ESP_OK) {
+			log_e("WebClient failed to feed WDT! Error: %d", err);
+		}
 		delay(10000);
 	}
 	vTaskDelete( NULL );
