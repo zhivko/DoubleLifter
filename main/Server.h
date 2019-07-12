@@ -12,7 +12,7 @@ SemaphoreHandle_t xSemaphore = NULL;
 
 #define enablePwm 0
 #define enableTaskManager 1
-#define enableWifiClient 1
+#define enableWifiClient 0
 
 bool enableLcd = true;
 bool enableMover = false;

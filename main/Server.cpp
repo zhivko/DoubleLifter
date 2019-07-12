@@ -81,15 +81,13 @@
 #include "Server.h"
 
 #if enableTaskManager == 1
-	#include "Taskmanager.h"
-	static int taskManagerCore = 0;
+#include "Taskmanager.h"
+static int taskManagerCore = 0;
 #endif
 
 #if enableWifiClient == 1
 	#include "WebClient.h"
 #endif
-
-
 
 #if enablePwm == 1
 	#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
@@ -106,7 +104,7 @@
 	#include "encoderSaver.h"
 	static int encoderSaverCore = 0;
 #else
-	#define enableEncSaver 0
+#define enableEncSaver 0
 #endif
 
 int pidTaskCore = 1;
@@ -124,6 +122,7 @@ bool shouldSendJson = false;
 //int udp_port = 1234;
 
 WiFiUDP ntpClient;
+GoogleHomeNotifier ghn;
 
 static CEspLcd* lcd_obj = NULL;
 uint32_t lastWsClient = -1;
@@ -133,7 +132,7 @@ float timeH;
 
 // Make MC server respond to: http://esp32_door:81/index.html
 int jsonReportIntervalMs = 5000;
-int jsonFastReportIntervalMs = 150;
+int jsonFastReportIntervalMs = 80;
 int jsonSlowReportIntervalMs = 5000;
 int capSenseIntervalMs = 50;
 int moverIntervalMs = 50;
@@ -291,6 +290,7 @@ static String pid_str2;
  }
  */
 
+//Application app;
 //void dbg_lwip_stats_show(void);
 void testSpi(int which);
 void gdfVdsStatus(int which);
@@ -896,7 +896,7 @@ void wsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client,
 				client->id(), client->remoteIP().toString().c_str());
 
 		//client->printf("Hello Client %u :)", client->id());
-		delay(100);
+		vTaskDelay(pdMS_TO_TICKS(100));
 		//client->ping();
 		jsonReportIntervalMs = jsonSlowReportIntervalMs;
 		lastWsClient = client->id();
@@ -1007,7 +1007,7 @@ void syncTime() {
 	ntpClient.write(ntpPacketBuffer, NTP_PACKET_SIZE);
 	ntpClient.endPacket();
 
-	delay(1000);
+	vTaskDelay(pdMS_TO_TICKS(1000));
 
 	int packetLength = ntpClient.parsePacket();
 	if (packetLength) {
@@ -1190,15 +1190,18 @@ void startServer() {
 		}
 		request->send(200, "text/html", "Target1 set OK.");
 	});
+	//client_id=client_id&scope=email%20profile
 
-	events.onConnect([](AsyncEventSourceClient *client){
-		if(client->lastId()){
-		  Serial.printf("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
-		}
-		//send event with message "hello!", id current millis
-		// and set reconnect delay to 1 second
-		client->send("hello!",NULL,millis(),1000);
-	});
+
+	events.onConnect(
+			[](AsyncEventSourceClient *client) {
+				if(client->lastId()) {
+					Serial.printf("Client reconnected! Last message ID that it gat is: %u\n", client->lastId());
+				}
+				//send event with message "hello!", id current millis
+				// and set reconnect delay to 1 second
+				client->send("hello!",NULL,millis(),1000);
+			});
 	//HTTP Basic authentication
 	events.setAuthentication("user", "pass");
 	server.addHandler(&events);
@@ -1207,7 +1210,7 @@ void startServer() {
 
 	MDNS.addService("http", "tcp", 80);
 
-	#if enableWifiClient == 1
+#if enableWifiClient == 1
 		lcd_out("Starting WifiClient...");
 		Serial.flush();
 
@@ -1260,6 +1263,7 @@ IRAM_ATTR void setJsonString() {
 				"\"PID2output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
 
 				"\"esp32_heap\":%zu,"
+				"\"esp32_largest_free_block\":%zu,"
 				"\"uptime_h\":%.2f"
 
 				"}",
@@ -1312,8 +1316,10 @@ IRAM_ATTR void setJsonString() {
 			,pid2.getMaxIOutput()
 			,pid2.getMaxError()
 
-				,esp_get_free_heap_size(),
-				timeH);
+				//,esp_get_free_heap_size()
+				,heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
+				,heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)
+				,timeH);
 //@formatter:on
 }
 
@@ -1682,7 +1688,7 @@ bool checkNoApFoundCritical() {
 		WiFi.mode(WIFI_AP);
 		if (WiFi.softAP(softAP_ssid, softAP_password)) {
 			Serial.println("Wait 100 ms for AP_START...");
-			delay(100);
+			vTaskDelay(pdMS_TO_TICKS(100));
 			Serial.println("");
 			IPAddress Ip(192, 168, 1, 1);
 			IPAddress NMask(255, 255, 255, 0);
@@ -1717,7 +1723,7 @@ void waitForIp() {
 		Serial.print("MAC: ");
 		Serial.println(WiFi.macAddress());
 		lcd_out("WaitForIp delay 1s.\n");
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
+		vTaskDelay(pdMS_TO_TICKS(1000));
 		Serial.print("SSID: ");
 		Serial.print(ssid);
 		Serial.print(" password: ***");
@@ -1738,9 +1744,9 @@ void blink(int i) {
 	if (enableLed) {
 		for (int j = 0; j < i; j++) {
 			digitalWrite(LED_PIN, HIGH);
-			vTaskDelay(50 / portTICK_PERIOD_MS);
+			vTaskDelay(pdMS_TO_TICKS(50));
 			digitalWrite(LED_PIN, LOW);
-			vTaskDelay(50 / portTICK_PERIOD_MS);
+			vTaskDelay(pdMS_TO_TICKS(50));
 		}
 	}
 }
@@ -1855,7 +1861,8 @@ void setup() {
 	if (enableLed)
 		pinMode(LED_PIN, OUTPUT);
 
-	vTaskDelay(3 / portTICK_PERIOD_MS);
+	vTaskDelay(pdMS_TO_TICKS(3));
+
 	lcd_out("Blinking.\n");
 	blink(2);
 
@@ -2024,8 +2031,6 @@ void setup() {
 		startServer();
 	}, WiFiEvent_t::SYSTEM_EVENT_AP_STAIPASSIGNED);
 
-
-
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("SYSTEM_EVENT_GOT_IP6\n");
 		//sstartServer();
@@ -2184,7 +2189,7 @@ void setup() {
 	pinMode(ROTARY_ENCODER1_B_PIN, INPUT_PULLUP);
 	lcd_out("encoders 4\n");
 
-	delay(100);
+	vTaskDelay(pdMS_TO_TICKS(100));
 	Serial.println("initialise PWM ...");
 	ledcSetup(LEDC_CHANNEL_0, 20000, LEDC_RESOLUTION);
 	ledcSetup(LEDC_CHANNEL_1, 20000, LEDC_RESOLUTION);
@@ -2194,7 +2199,7 @@ void setup() {
 	ledcAttachPin(PWM2_PIN, LEDC_CHANNEL_1);
 	ledcAttachPin(PWM3_PIN, LEDC_CHANNEL_2);
 	ledcAttachPin(PWM4_PIN, LEDC_CHANNEL_3);
-	delay(100);
+	vTaskDelay(pdMS_TO_TICKS(100));
 	Serial.flush();
 #endif
 
@@ -2363,7 +2368,7 @@ void myLoop() {			//ArduinoOTA.handle();
 			server.handleClient();
 			ws.loop();
 #endif
-		vTaskDelay(30 / portTICK_PERIOD_MS);
+		vTaskDelay(pdMS_TO_TICKS(30));
 	}
 }
 
@@ -2425,13 +2430,15 @@ void app_main() {
 }
 
 void CheckIpTask(void * parameter) {
-	delay(5000);
+	vTaskDelay(pdMS_TO_TICKS(5000));
+
 	if (WiFi.status() != WL_CONNECTED) {
 		lcd_out("Could not connect... Entering in AP mode.\n");
 		WiFi.mode(WIFI_AP);
 		if (WiFi.softAP(softAP_ssid, softAP_password)) {
 			Serial.println("Wait 100 ms for AP_START...");
-			delay(100);
+			vTaskDelay(pdMS_TO_TICKS(100));
+
 			//IPAddress Ip(192, 168, 1, 8);
 			//IPAddress NMask(255, 255, 255, 0);
 			//WiFi.softAPConfig(Ip, Ip, NMask);

@@ -3,6 +3,7 @@
 #include <memory>
 
 void taskmanageTask(void *params) {
+	esp_task_wdt_add(NULL);
 	while (true) {
 		UBaseType_t taskCount = uxTaskGetNumberOfTasks();
 		std::unique_ptr<TaskStatus_t[]> taskList(new TaskStatus_t[taskCount]);
@@ -33,6 +34,10 @@ void taskmanageTask(void *params) {
 							/ (float) ulTotalRunTime,
 					taskList[task].usStackHighWaterMark,
 					taskList[task].xCoreID);
+		}
+		esp_err_t err = esp_task_wdt_reset();
+		if (err != ESP_OK) {
+			log_e("TaskManager - Failed to feed WDT! Error: %d", err);
 		}
 		vTaskDelay(pdMS_TO_TICKS(20000));
 	}

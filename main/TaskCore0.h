@@ -101,47 +101,47 @@ static void IRAM_ATTR readEncoder1_ISR() {
 	boolean B = digitalRead(rotaryEncoder1.encoderBPin);
 
 	if ((A == HIGH) && (B == HIGH))
-		rotaryEncoder1.phase = 1;
+	rotaryEncoder1.phase = 1;
 	if ((A == HIGH) && (B == LOW))
-		rotaryEncoder1.phase = 2;
+	rotaryEncoder1.phase = 2;
 	if ((A == LOW) && (B == LOW))
-		rotaryEncoder1.phase = 3;
+	rotaryEncoder1.phase = 3;
 	if ((A == LOW) && (B == HIGH))
-		rotaryEncoder1.phase = 4;
+	rotaryEncoder1.phase = 4;
 
 	switch (rotaryEncoder1.phase) {
 
-	case 1: {
-		if (rotaryEncoder1.phasep == 2)
+		case 1: {
+			if (rotaryEncoder1.phasep == 2)
 			rotaryEncoder1.encoder0Pos--;
-		if (rotaryEncoder1.phasep == 4)
+			if (rotaryEncoder1.phasep == 4)
 			rotaryEncoder1.encoder0Pos++;
-		break;
-	}
+			break;
+		}
 
-	case 2: {
-		if (rotaryEncoder1.phasep == 1)
+		case 2: {
+			if (rotaryEncoder1.phasep == 1)
 			rotaryEncoder1.encoder0Pos++;
-		if (rotaryEncoder1.phasep == 3)
+			if (rotaryEncoder1.phasep == 3)
 			rotaryEncoder1.encoder0Pos--;
-		break;
-	}
+			break;
+		}
 
-	case 3: {
-		if (rotaryEncoder1.phasep == 2)
+		case 3: {
+			if (rotaryEncoder1.phasep == 2)
 			rotaryEncoder1.encoder0Pos++;
-		if (rotaryEncoder1.phasep == 4)
+			if (rotaryEncoder1.phasep == 4)
 			rotaryEncoder1.encoder0Pos--;
-		break;
-	}
+			break;
+		}
 
-	default: {
-		if (rotaryEncoder1.phasep == 1)
+		default: {
+			if (rotaryEncoder1.phasep == 1)
 			rotaryEncoder1.encoder0Pos--;
-		if (rotaryEncoder1.phasep == 3)
+			if (rotaryEncoder1.phasep == 3)
 			rotaryEncoder1.encoder0Pos++;
-		break;
-	}
+			break;
+		}
 	}
 	rotaryEncoder1.phasep = rotaryEncoder1.phase;
 	portEXIT_CRITICAL_ISR(&(rotaryEncoder1.mux));
@@ -154,47 +154,47 @@ static void IRAM_ATTR readEncoder2_ISR() {
 	boolean B = digitalRead(rotaryEncoder2.encoderBPin);
 
 	if ((A == HIGH) && (B == HIGH))
-		rotaryEncoder2.phase = 1;
+	rotaryEncoder2.phase = 1;
 	if ((A == HIGH) && (B == LOW))
-		rotaryEncoder2.phase = 2;
+	rotaryEncoder2.phase = 2;
 	if ((A == LOW) && (B == LOW))
-		rotaryEncoder2.phase = 3;
+	rotaryEncoder2.phase = 3;
 	if ((A == LOW) && (B == HIGH))
-		rotaryEncoder2.phase = 4;
+	rotaryEncoder2.phase = 4;
 
 	switch (rotaryEncoder2.phase) {
 
-	case 1: {
-		if (rotaryEncoder2.phasep == 2)
+		case 1: {
+			if (rotaryEncoder2.phasep == 2)
 			rotaryEncoder2.encoder0Pos--;
-		if (rotaryEncoder2.phasep == 4)
+			if (rotaryEncoder2.phasep == 4)
 			rotaryEncoder2.encoder0Pos++;
-		break;
-	}
+			break;
+		}
 
-	case 2: {
-		if (rotaryEncoder2.phasep == 1)
+		case 2: {
+			if (rotaryEncoder2.phasep == 1)
 			rotaryEncoder2.encoder0Pos++;
-		if (rotaryEncoder2.phasep == 3)
+			if (rotaryEncoder2.phasep == 3)
 			rotaryEncoder2.encoder0Pos--;
-		break;
-	}
+			break;
+		}
 
-	case 3: {
-		if (rotaryEncoder2.phasep == 2)
+		case 3: {
+			if (rotaryEncoder2.phasep == 2)
 			rotaryEncoder2.encoder0Pos++;
-		if (rotaryEncoder2.phasep == 4)
+			if (rotaryEncoder2.phasep == 4)
 			rotaryEncoder2.encoder0Pos--;
-		break;
-	}
+			break;
+		}
 
-	default: {
-		if (rotaryEncoder2.phasep == 1)
+		default: {
+			if (rotaryEncoder2.phasep == 1)
 			rotaryEncoder2.encoder0Pos--;
-		if (rotaryEncoder2.phasep == 3)
+			if (rotaryEncoder2.phasep == 3)
 			rotaryEncoder2.encoder0Pos++;
-		break;
-	}
+			break;
+		}
 	}
 	rotaryEncoder2.phasep = rotaryEncoder2.phase;
 	portEXIT_CRITICAL_ISR(&(rotaryEncoder2.mux));
@@ -302,23 +302,23 @@ void Task1(void * parameter) {
 		int16_t encoderDelta = encoder1_value - encoder2_value;
 		//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 5) == pdTRUE) {
 
-			if (pid1Enabled) {
-				pid1.setPositionDiff(encoderDelta);
-				pid1.setSetpoint(target1);
-				output1 = pid1.getOutput((float) encoder1_value, target1);
-				pwm1 = (int) (output1); //- (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
-			} else {
-				pwm1 = 0;
-			}
-			if (pid2Enabled) {
-				pid2.setPositionDiff(-encoderDelta);
-				pid2.setSetpoint(target2);
-				output2 = pid2.getOutput((float) encoder2_value, target2);
-				pwm2 = (int) (output2); //+ (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
-			} else {
-				pwm2 = 0;
-			}
-			//xSemaphoreGive( xSemaphore );
+		if (pid1Enabled) {
+			pid1.setPositionDiff(encoderDelta);
+			pid1.setSetpoint(target1);
+			output1 = pid1.getOutput((float) encoder1_value, target1);
+			pwm1 = (int) (output1); //- (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
+		} else {
+			pwm1 = 0;
+		}
+		if (pid2Enabled) {
+			pid2.setPositionDiff(-encoderDelta);
+			pid2.setSetpoint(target2);
+			output2 = pid2.getOutput((float) encoder2_value, target2);
+			pwm2 = (int) (output2); //+ (deltaPos*1.0 / maxPositionDelta * pwmPositionDelta));
+		} else {
+			pwm2 = 0;
+		}
+		//xSemaphoreGive( xSemaphore );
 		//}
 #if enablePwm == 1
 		setAnalogForPwm();
@@ -362,9 +362,9 @@ void Task1(void * parameter) {
 
 		//Serial.println("resetting task");
 		esp_err_t err = esp_task_wdt_reset();
-//		if (err != ESP_OK) {
-//			log_e("Failed to feed WDT! Error: %d", err);
-//		}
+		if (err != ESP_OK) {
+			log_e("PidTask - Failed to feed WDT! Error: %d", err);
+		}
 		vTaskDelay(5 / portTICK_PERIOD_MS);
 	}
 }
