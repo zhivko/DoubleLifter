@@ -15,7 +15,7 @@
 /*handling uploading firmware file */
 /*
  To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
- curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7/update --progress-bar --verbose
+ curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7:81/update --progress-bar --verbose
  */
 #include <esp_heap_caps.h>
 #include "esp_heap_trace.h"
@@ -240,7 +240,7 @@ void CheckIpTask(void * parameter);
 char txtToSend[1100] = { };
 
 #ifndef arduinoWebserver
-AsyncWebServer server(80);
+AsyncWebServer server(81);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 AsyncEventSource events("/events");
 #endif
@@ -400,16 +400,18 @@ String processInput(const char *input) {
 		}
 	} else if (strncmp(input, "target1_", 8) == 0) {
 		Serial.printf("Command: %s\n", input);
+
+		String input1 = getToken(input, '#', 1);
+		target1 = input1.toDouble();
 		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
 				(float) target2);
-		String input2 = getToken(input, '#', 1);
-		target1 = input2.toDouble();
+
 		if (preferences.begin("settings", false)) {
 			preferences.putInt("target1", (int) target1);
 			preferences.end();
 			lcd_out("Saved target1= %d from (%f)\n", (int) target1, target1);
 		}
-		//pid1.reset();
+		pid1.startRegulate();
 		pid1Enabled = true;
 		if (ws.hasClient(lastWsClient)) {
 			setJsonString();
@@ -419,16 +421,17 @@ String processInput(const char *input) {
 				(float) target2);
 	} else if (strncmp(input, "target2_", 8) == 0) {
 		Serial.printf("Command: %s\n", input);
-		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
-				(float) target2);
 		String input2 = getToken(input, '#', 1);
 		target2 = input2.toDouble();
+		lcd_out("Target1= %.2f target2= %.2f\n", (float) target1,
+				(float) target2);
+
 		if (preferences.begin("settings", false)) {
 			preferences.putInt("target2", (int) target2);
 			preferences.end();
 			lcd_out("Saved target2= %d from (%f)\n", (int) target2, target2);
 		}
-		//pid2.reset();
+		pid2.startRegulate();
 		pid2Enabled = true;
 		if (ws.hasClient(lastWsClient)) {
 			setJsonString();
@@ -1239,9 +1242,36 @@ void syncTime();
 
 IRAM_ATTR void setJsonString() {
 
-//@formatter:off
+	char outSecond1[90];
+	sprintf(outSecond1, "%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d",
+	pid1.outSecond[0],
+	pid1.outSecond[1],
+	pid1.outSecond[2],
+	pid1.outSecond[3],
+	pid1.outSecond[4],
+	pid1.outSecond[5],
+	pid1.outSecond[6],
+	pid1.outSecond[7],
+	pid1.outSecond[8],
+	pid1.outSecond[9]);
+	char outSecond2[90];
+	sprintf(outSecond2, "%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d",
+	pid2.outSecond[0],
+	pid2.outSecond[1],
+	pid2.outSecond[2],
+	pid2.outSecond[3],
+	pid2.outSecond[4],
+	pid2.outSecond[5],
+	pid2.outSecond[6],
+	pid2.outSecond[7],
+	pid2.outSecond[8],
+	pid2.outSecond[9]);
+
+	//@formatter:off
 		sprintf(txtToSend,
 				"{"
+				"\"outSecond1\":\"%s\","
+				"\"outSecond2\":\"%s\","
 				"\"encoder1_value\":%d,"
 				"\"encoder2_value\":%d,"
 				"\"pwm1\":%d,"
@@ -1273,6 +1303,8 @@ IRAM_ATTR void setJsonString() {
 
 				"}",
 
+				outSecond1,
+				outSecond2,
 				encoder1_value,
 				encoder2_value,
 				pwm1,
