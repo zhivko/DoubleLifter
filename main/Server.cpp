@@ -15,10 +15,7 @@
 /*handling uploading firmware file */
 /*
  To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
- curl -F "image=@build/DoubleLifter.bin" 86.61.7.75/update
- curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7:81/update --progress-bar --verbose
- curl -F "image=@build/DoubleLifter.bin" http://192.168.43.165:81/update --progress-bar --verbose
- curl --verbose --progress-bar -T "./build/DoubleLifter.bin" "http://192.168.1.7:81/update" | tee /dev/null
+ curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7/update --progress-bar --verbose
  */
 #include <esp_heap_caps.h>
 #include "esp_heap_trace.h"
@@ -31,7 +28,6 @@
 #include <ESPmDNS.h>
 #include <SPI.h>
 
-#include <WiFi.h>
 #include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
 
@@ -100,12 +96,11 @@ static int taskManagerCore = 0;
 	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
 	ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
 
-	#define enableEncSaver 1
-	#include "encoderSaver.h"
-	static int encoderSaverCore = 0;
-#else
-#define enableEncSaver 0
 #endif
+
+#include "fauxmoESP.h"
+void fauxmoSetup();
+fauxmoESP fauxmo;
 
 int pidTaskCore = 1;
 bool shouldReboot = false;
@@ -122,7 +117,6 @@ bool shouldSendJson = false;
 //int udp_port = 1234;
 
 WiFiUDP ntpClient;
-GoogleHomeNotifier ghn;
 
 static CEspLcd* lcd_obj = NULL;
 uint32_t lastWsClient = -1;
@@ -246,7 +240,7 @@ void CheckIpTask(void * parameter);
 char txtToSend[1100] = { };
 
 #ifndef arduinoWebserver
-AsyncWebServer server(81);
+AsyncWebServer server(80);
 AsyncWebSocket ws("/ws"); // access at ws://[esp ip]/ws
 AsyncEventSource events("/events");
 #endif
@@ -300,6 +294,12 @@ String getToken(String data, char separator, int index);
 void sendPid1ToClient();
 void sendPid2ToClient();
 void lcd_out(const char *format, ...);
+
+const char *get_local_ip()
+{
+	return serverIP.toString().c_str();
+}
+
 
 void pidRegulatedCallBack1() {
 	//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 150) == pdTRUE) {
@@ -601,7 +601,13 @@ String processInput(const char *input) {
 		Serial.printf("ScanNetworks...Started.\n");
 		WiFi.scanDelete();
 		WiFi.scanNetworks(true, true, false, 200);
-	}
+	} else if (strcmp(input, "restart") == 0) {
+		//vTaskSuspend(reportJsonTask);
+		//delay(10);
+				//xTimerStop(tmrWs, 0);
+				Serial.printf("Restarting esp32...\n");
+				esp_restart();
+			}
 
 	return ret;
 }
@@ -1191,7 +1197,6 @@ void startServer() {
 		request->send(200, "text/html", "Target1 set OK.");
 	});
 	//client_id=client_id&scope=email%20profile
-
 
 	events.onConnect(
 			[](AsyncEventSourceClient *client) {
@@ -2023,6 +2028,17 @@ void setup() {
 		lcd_out("SYSTEM_EVENT_STA_GOT_IP\n");
 		serverIP = WiFi.localIP();
 		startServer();
+
+		// start alexa
+		/*
+		int udp_connected = connect_udp((char*)serverIP.toString().c_str());
+		if (!udp_connected) {
+			ESP_LOGE(TAG, "udp connect failed!");
+			return;
+		}
+		*/
+		// end start alexa
+
 	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
@@ -2249,6 +2265,9 @@ void setup() {
 	digitalWrite(GATEDRIVER_PIN, HIGH);			//enable gate drivers
 	lcd_out("Starting pidTask...Done.\n");
 
+	//fauxmoSetup();
+	//alexa_init();
+
 	blink(5);
 	lcd_out("Setup Done.\n");
 
@@ -2368,6 +2387,7 @@ void myLoop() {			//ArduinoOTA.handle();
 			server.handleClient();
 			ws.loop();
 #endif
+		//fauxmo.handle();
 		vTaskDelay(pdMS_TO_TICKS(30));
 	}
 }
@@ -2473,3 +2493,52 @@ void CheckIpTask(void * parameter) {
 
 	vTaskDelete(NULL);
 }
+
+void fauxmoSetup() {
+	// By default, fauxmoESP creates it's own webserver on the defined port
+	// The TCP port must be 80 for gen3 devices (default is 1901)
+	// This has to be done before the call to enable()
+	fauxmo.createServer(true); // not needed, this is the default value
+	fauxmo.setPort(80); // This is required for gen3 devices
+
+	// You have to call enable(true) once you have a WiFi connection
+	// You can enable or disable the library at any moment
+	// Disabling it will prevent the devices from being discovered and switched
+	fauxmo.enable(true);
+
+	// You can use different ways to invoke alexa to modify the devices state:
+	// "Alexa, turn yellow lamp on"
+	// "Alexa, turn on yellow lamp
+	// "Alexa, set yellow lamp to fifty" (50 means 50% of brightness, note, this example does not use this functionality)
+
+	// Add virtual devices
+#define ID_TOP "DoubleLifter TOP"
+#define ID_BOTTOM "DoubleLifter BOTTOM"
+
+	fauxmo.addDevice(ID_TOP);
+	fauxmo.addDevice(ID_BOTTOM);
+
+	fauxmo.onSetState(
+		[](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
+
+			// Callback when a command from Alexa is received.
+			// You can use device_id or device_name to choose the element to perform an action onto (relay, LED,...)
+			// State is a boolean (ON/OFF) and value a number from 0 to 255 (if you say "set kitchen light to 50%" you will receive a 128 here).
+			// Just remember not to delay too much here, this is a callback, exit as soon as possible.
+			// If you have to do something more involved here set a flag and process it in your main loop.
+
+			Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
+
+			// Checking for device_id is simpler if you are certain about the order they are loaded and it does not change.
+			// Otherwise comparing the device_name is safer.
+
+			if (strcmp(device_name, ID_TOP)==0) {
+				//digitalWrite(LED_YELLOW, state ? HIGH : LOW);
+				printf("Alexa TOP\n");
+			} else if (strcmp(device_name, ID_BOTTOM)==0) {
+				//digitalWrite(LED_GREEN, state ? HIGH : LOW);
+				printf("Alexa BOTTOM\n");
+			}
+		});
+}
+

@@ -365,6 +365,6 @@ void Task1(void * parameter) {
 		if (err != ESP_OK) {
 			log_e("PidTask - Failed to feed WDT! Error: %d", err);
 		}
-		vTaskDelay(5 / portTICK_PERIOD_MS);
+		delay(5);
 	}
 }

@@ -14,7 +14,7 @@ void encoderSaverTask(void * pvParameters) {
 			preferences.end();
 			delta = micros() - start;
 
-			if (delta > 1000) {
+			if (delta > 50000) {
 				lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
 						delta);
 			}
@@ -29,12 +29,12 @@ void encoderSaverTask(void * pvParameters) {
 			preferences.end();
 			delta = micros() - start;
 
-			if (delta > 1000) {
+			if (delta > 50000) {
 				lcd_out("%lu Preferences save completed in %lu us.\n", micros(),
 						delta);
 			}
 		}
 
-		delay(500);
+		delay(10);
 	}
 }
