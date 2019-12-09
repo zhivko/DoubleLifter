@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <esp_int_wdt.h>
 #include <esp_task_wdt.h>
+#include <esp_system.h>
 
 #include "freertos/FreeRTOS.h"
 #include "esp_log.h"
@@ -86,15 +87,15 @@ static int taskManagerCore = 0;
 #endif
 
 #if enablePwm == 1
-	#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
-	#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
-	#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
-	#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
+#define ROTARY_ENCODER2_A_PIN GPIO_NUM_4
+#define ROTARY_ENCODER2_B_PIN GPIO_NUM_16
+#define ROTARY_ENCODER1_A_PIN GPIO_NUM_17
+#define ROTARY_ENCODER1_B_PIN GPIO_NUM_5
 
-	AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
-	ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
-	AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
-	ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
+AiEsp32RotaryEncoder rotaryEncoder2 = AiEsp32RotaryEncoder(
+ROTARY_ENCODER2_A_PIN, ROTARY_ENCODER2_B_PIN, -1, -1);
+AiEsp32RotaryEncoder rotaryEncoder1 = AiEsp32RotaryEncoder(
+ROTARY_ENCODER1_A_PIN, ROTARY_ENCODER1_B_PIN, -1, -1);
 
 #endif
 
@@ -295,11 +296,9 @@ void sendPid1ToClient();
 void sendPid2ToClient();
 void lcd_out(const char *format, ...);
 
-const char *get_local_ip()
-{
+const char *get_local_ip() {
 	return serverIP.toString().c_str();
 }
-
 
 void pidRegulatedCallBack1() {
 	//if ( xSemaphoreTake( xSemaphore, ( TickType_t ) 150) == pdTRUE) {
@@ -607,10 +606,10 @@ String processInput(const char *input) {
 	} else if (strcmp(input, "restart") == 0) {
 		//vTaskSuspend(reportJsonTask);
 		//delay(10);
-				//xTimerStop(tmrWs, 0);
-				Serial.printf("Restarting esp32...\n");
-				esp_restart();
-			}
+		//xTimerStop(tmrWs, 0);
+		Serial.printf("Restarting esp32...\n");
+		esp_restart();
+	}
 
 	return ret;
 }
@@ -1090,13 +1089,26 @@ void startServer() {
 // handler for the /update form POST (once file upload finishes)
 	server.onFileUpload(
 			[](AsyncWebServerRequest *request, const String& filename, size_t index, uint8_t *data, size_t len, bool final) {
-				Serial.printf("onFileUpload called, index: %d  len: %d  final: %d\n", index, len, final);
-				//shouldSendJson = false;
+				//Serial.printf("onFileUpload called filename: %s, index: %d  len: %d  final: %d\n", filename.c_str(), index, len, final);
+
 				uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
 				if(0 == index) {
 					lcd_out("UploadStart: %s\n", filename.c_str());
 					//xTimerStop(tmrWs, 0);
-					if(!Update.begin(maxSketchSpace)) {Serial.println("Update begin failure!");}
+					if(filename.equals("spiffs.bin"))
+					{
+						if(!Update.begin(maxSketchSpace,U_SPIFFS))
+						{
+							Serial.println("Update spiffs begin failure!");
+						}
+					}
+					else
+					{
+						if(!Update.begin(maxSketchSpace))
+						{
+							Serial.println("Update begin failure!");
+						}
+					}
 				}
 				if(Update.write(data, len) != len) {
 					Update.printError(Serial);
@@ -1243,29 +1255,19 @@ void syncTime();
 IRAM_ATTR void setJsonString() {
 
 	char outSecond1[90];
-	sprintf(outSecond1, "%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d",
-	pid1.outSecond[0],
-	pid1.outSecond[1],
-	pid1.outSecond[2],
-	pid1.outSecond[3],
-	pid1.outSecond[4],
-	pid1.outSecond[5],
-	pid1.outSecond[6],
-	pid1.outSecond[7],
-	pid1.outSecond[8],
-	pid1.outSecond[9]);
+	sprintf(outSecond1,
+			"%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d",
+			pid1.outSecond[0], pid1.outSecond[1], pid1.outSecond[2],
+			pid1.outSecond[3], pid1.outSecond[4], pid1.outSecond[5],
+			pid1.outSecond[6], pid1.outSecond[7], pid1.outSecond[8],
+			pid1.outSecond[9]);
 	char outSecond2[90];
-	sprintf(outSecond2, "%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d",
-	pid2.outSecond[0],
-	pid2.outSecond[1],
-	pid2.outSecond[2],
-	pid2.outSecond[3],
-	pid2.outSecond[4],
-	pid2.outSecond[5],
-	pid2.outSecond[6],
-	pid2.outSecond[7],
-	pid2.outSecond[8],
-	pid2.outSecond[9]);
+	sprintf(outSecond2,
+			"%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d<br>%d",
+			pid2.outSecond[0], pid2.outSecond[1], pid2.outSecond[2],
+			pid2.outSecond[3], pid2.outSecond[4], pid2.outSecond[5],
+			pid2.outSecond[6], pid2.outSecond[7], pid2.outSecond[8],
+			pid2.outSecond[9]);
 
 	//@formatter:off
 		sprintf(txtToSend,
@@ -1297,6 +1299,7 @@ IRAM_ATTR void setJsonString() {
 				"\"PID1output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
 				"\"PID2output\":\"Pout=%.2f<br>Iout=%.2f<br>Dout=%.2f<br>Fout=%.2f<br>POSout=%.2f<br>POSoutF=%.2f<br>setpoint=%.2f<br>actual=%.2f<br>error=%.2f<br>errorSum=%.2f<br>maxIOutput=%.2f<br>maxError=%.2f\","
 
+				"\"esp_idf_ver\":\"%s\","
 				"\"esp32_heap\":%zu,"
 				"\"esp32_largest_free_block\":%zu,"
 				"\"uptime_h\":%.2f"
@@ -1354,6 +1357,7 @@ IRAM_ATTR void setJsonString() {
 			,pid2.getMaxError()
 
 				//,esp_get_free_heap_size()
+				,esp_get_idf_version()
 				,heap_caps_get_free_size(MALLOC_CAP_INTERNAL)
 				,heap_caps_get_largest_free_block(MALLOC_CAP_8BIT)
 				,timeH);
@@ -2062,16 +2066,15 @@ void setup() {
 		startServer();
 
 		// start alexa
-		/*
-		int udp_connected = connect_udp((char*)serverIP.toString().c_str());
-		if (!udp_connected) {
-			ESP_LOGE(TAG, "udp connect failed!");
-			return;
-		}
-		*/
-		// end start alexa
-
-	}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
+			/*
+			 int udp_connected = connect_udp((char*)serverIP.toString().c_str());
+			 if (!udp_connected) {
+			 ESP_LOGE(TAG, "udp connect failed!");
+			 return;
+			 }
+			 */
+			// end start alexa
+		}, WiFiEvent_t::SYSTEM_EVENT_STA_GOT_IP);
 
 	WiFi.onEvent([](WiFiEvent_t event, WiFiEventInfo_t info) {
 		lcd_out("SYSTEM_EVENT_AP_STAIPASSIGNED\n");
@@ -2551,26 +2554,26 @@ void fauxmoSetup() {
 	fauxmo.addDevice(ID_BOTTOM);
 
 	fauxmo.onSetState(
-		[](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
+			[](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
 
-			// Callback when a command from Alexa is received.
-			// You can use device_id or device_name to choose the element to perform an action onto (relay, LED,...)
-			// State is a boolean (ON/OFF) and value a number from 0 to 255 (if you say "set kitchen light to 50%" you will receive a 128 here).
-			// Just remember not to delay too much here, this is a callback, exit as soon as possible.
-			// If you have to do something more involved here set a flag and process it in your main loop.
+				// Callback when a command from Alexa is received.
+				// You can use device_id or device_name to choose the element to perform an action onto (relay, LED,...)
+				// State is a boolean (ON/OFF) and value a number from 0 to 255 (if you say "set kitchen light to 50%" you will receive a 128 here).
+				// Just remember not to delay too much here, this is a callback, exit as soon as possible.
+				// If you have to do something more involved here set a flag and process it in your main loop.
 
-			Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
+				Serial.printf("[MAIN] Device #%d (%s) state: %s value: %d\n", device_id, device_name, state ? "ON" : "OFF", value);
 
-			// Checking for device_id is simpler if you are certain about the order they are loaded and it does not change.
-			// Otherwise comparing the device_name is safer.
+				// Checking for device_id is simpler if you are certain about the order they are loaded and it does not change.
+				// Otherwise comparing the device_name is safer.
 
-			if (strcmp(device_name, ID_TOP)==0) {
-				//digitalWrite(LED_YELLOW, state ? HIGH : LOW);
-				printf("Alexa TOP\n");
-			} else if (strcmp(device_name, ID_BOTTOM)==0) {
-				//digitalWrite(LED_GREEN, state ? HIGH : LOW);
-				printf("Alexa BOTTOM\n");
-			}
-		});
+				if (strcmp(device_name, ID_TOP)==0) {
+					//digitalWrite(LED_YELLOW, state ? HIGH : LOW);
+					printf("Alexa TOP\n");
+				} else if (strcmp(device_name, ID_BOTTOM)==0) {
+					//digitalWrite(LED_GREEN, state ? HIGH : LOW);
+					printf("Alexa BOTTOM\n");
+				}
+			});
 }
 

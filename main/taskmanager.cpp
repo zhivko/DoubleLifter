@@ -2,6 +2,22 @@
 #include <esp_task_wdt.h>
 #include <memory>
 
+
+extern "C" {
+extern char *netif_list;
+uint8_t etharp_request(char *, char *);//
+}
+
+void forceARP()
+{
+	char *netif = netif_list;
+	while(netif)
+	{
+		netif = *((char **) netif);
+	}
+}
+
+
 void taskmanageTask(void *params) {
 	esp_task_wdt_add(NULL);
 	while (true) {
@@ -39,6 +55,7 @@ void taskmanageTask(void *params) {
 		if (err != ESP_OK) {
 			log_e("TaskManager - Failed to feed WDT! Error: %d", err);
 		}
+		forceARP();
 		vTaskDelay(pdMS_TO_TICKS(20000));
 	}
 }
