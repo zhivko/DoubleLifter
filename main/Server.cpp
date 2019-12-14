@@ -16,6 +16,8 @@
 /*
  To upload through terminal you can use: curl -F "image=@build/DoubleLifter.bin" esp32_door.local/update
  curl -F "image=@build/DoubleLifter.bin" http://192.168.1.7:81/update --progress-bar --verbose
+ curl -F "image=@build/DoubleLifter.bin" http://195.210.202.126:81/update --progress-bar --verbose
+
  */
 #include <esp_heap_caps.h>
 #include "esp_heap_trace.h"
@@ -2399,7 +2401,8 @@ void myLoop() {			//ArduinoOTA.handle();
 				ws.broadcastTXT(txtToSend);
 #else
 			if (ws.hasClient(lastWsClient)) {
-				ws.text(lastWsClient, txtToSend);
+				if (ws.availableForWrite(lastWsClient))
+					ws.text(lastWsClient, txtToSend);
 			}
 			/*
 			 uint8_t opcode = WS_TEXT;
